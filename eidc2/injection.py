@@ -10,7 +10,7 @@ __all__ = ['inject_fcp_ifs']
 
 import numpy as np
 from special.model_resampling import resample_model
-from vip_hci.metrics import cube_inject_companions
+from vip_hci.fm import cube_inject_companions
 
 
 def inject_fcp_ifs(cube, derot_angles, psf, pos_rtheta, fcp_spec, star_spec, 
