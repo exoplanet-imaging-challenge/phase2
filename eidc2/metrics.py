@@ -41,7 +41,6 @@ def distance(gts, estimates, errors=None, mode='relative'):
             msg = "If provided, errors should have same shape as estimates"
             raise TypeError(msg)
 
-    if mode == 'relative':
-        distance = np.abs(gts-estimates)/np.abs(gts)
+    
+    return np.abs(gts-estimates)
 
-    return distance

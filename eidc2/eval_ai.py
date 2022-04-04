@@ -108,6 +108,8 @@ def read_submission(zipfilename, fitsfilenames=None,  verbose=False):
     '''
     Function to read the ZIP file submitted by a participant of the data challenge.
     
+    The ZIP file is extracted in a temporal folder that it is then removed.
+    
     Parameters
     ----------
     ·  zipfilename: str
@@ -132,11 +134,14 @@ def read_submission(zipfilename, fitsfilenames=None,  verbose=False):
     else:
         msg = 'zipfilename must be an string.'
         raise ValueError(msg)
+        
+    tempfolder = ctime()    
+    os.mkdir(str(tempfolder))
     
     if fitsfilenames is not None:
         if isinstance(fitsfilenames, list):
             if all(isinstance(item, str) for item in fitsfilenames):
-                for i in fitsfilenames: file.extract(i)
+                for i in fitsfilenames: file.extract(i, str(tempfolder))
                 names = fitsfilenames
             else:
                 msg = 'each item in fitsfilenames must be an string.'
@@ -145,23 +150,27 @@ def read_submission(zipfilename, fitsfilenames=None,  verbose=False):
             msg = 'fitsfilenames must be a list or a None.'
             raise ValueError(msg) 
     else:
-        file.extractall()
+        file.extractall(str(tempfolder))
         names = file.namelist()
 
     res = []
     for mef in names:
-        if verbose: print('File '+str(mef)+':')
-        estimates    = np.asarray(vip.fits.open_fits(fitsfilename=str(mef), n=0, verbose=verbose))
-        uncertanties = np.asarray(vip.fits.open_fits(fitsfilename=str(mef), n=1, verbose=verbose))
-        posteriors   = np.asarray(vip.fits.open_fits(fitsfilename=str(mef), n=2, verbose=verbose))
+        if verbose: 
+            print('File '+str(mef)+':')
+        mef_ = mef.removesuffix('.fits')
+        estimates    = np.asarray(vip.fits.open_fits(fitsfilename=str(tempfolder)+'/'+str(mef_), n=0, verbose=verbose))
+        uncertanties = np.asarray(vip.fits.open_fits(fitsfilename=str(tempfolder)+'/'+str(mef_), n=1, verbose=verbose))
+        posteriors   = np.asarray(vip.fits.open_fits(fitsfilename=str(tempfolder)+'/'+str(mef_), n=2, verbose=verbose))
         results = (estimates, uncertanties, posteriors)
         res.append(results)
-        os.remove(mef)
     file.close()
+    shutil.rmtree(str(tempfolder))
     
     return res
 
-def eval_submission(username, astrometry, photometry, verbose=True):
+
+
+def eval_submission(username, astrometry, photometry, verbose=True, plot=True):
     '''
     Function to evaluate both the astrometry and photometry submissions 
     for the second Exoplanet Imaging Data Challenge.
@@ -256,5 +265,29 @@ def eval_submission(username, astrometry, photometry, verbose=True):
         print(' > Distance per cube:')
         print('  · Contrast= '+str(np.round(contrasts_avg, 3)))
         print(' > Final metric of '+str(username)+': ' +str(metric_photo))
+        
+    if plot:
+        x = np.arange(0, len(gt_photo[0][0]))
+        fig, axs = plt.subplots(2,9, figsize=(32,6))
+        for i in range(len(gt_photo)):
+            axs[0][i].set_title('Cube '+str(i+1), fontsize=15)
+            sns.kdeplot(sub_astro[i][2][0], sub_astro[i][2][1], ax=axs[0][i], alpha=0.8, label='P($\hat{y}$)')
+            axs[0][i].scatter(sub_astro[i][0][0],sub_astro[i][0][1], marker='X', c='k', label='$\hat{y}$')
+            axs[0][i].scatter(gt_astro[i][0][0],gt_astro[i][0][1], marker='X', c='r', label='y')
+            axs[0][i].grid(alpha=0.2)
+            axs[0][i].set_xlabel('r [mas]', fontsize=14)
+            if i==0: axs[0][i].set_ylabel('$\u03B8$ [º]', fontsize=14)
+            axs[0][i].legend(loc=1)
+
+            axs[1][i].plot(sub_photo[i][0], c='b', label='$\hat{y}$', linewidth=1)
+            axs[1][i].plot(gt_photo[i][0], c='r', label='y', linewidth=1, linestyle='--')
+            axs[1][i].fill_between(x, sub_photo[i][0]+sub_photo[i][1], sub_photo[i][0]-sub_photo[i][1], color='b', alpha=0.1, label='P($\hat{y}$)')
+            axs[1][i].grid(alpha=0.2)
+            axs[1][i].set_xlabel('Wavelength', fontsize=14)
+            if i==0: axs[1][i].set_ylabel('Contrast', fontsize=14)
+            axs[1][i].legend(loc=1)
+
+        plt.subplots_adjust(top = 0.99, bottom=0.1, hspace=0.5, wspace=0.3)
+        plt.show()
         
     return metric_astro, metric_photo
