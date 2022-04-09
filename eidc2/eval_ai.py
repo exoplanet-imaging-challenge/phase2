@@ -11,7 +11,7 @@ __all__ = ['create_mefs',
            'eval_submission']
 
 
-from metrics import distance
+from .metrics import distance
 import numpy as np 
 import zipfile
 import vip_hci as vip

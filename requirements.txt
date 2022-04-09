@@ -1,2 +1,2 @@
-vip_hci>=1.1.0
-special>=0.0.3
+vip_hci>=1.2.1
+special>=0.1.1

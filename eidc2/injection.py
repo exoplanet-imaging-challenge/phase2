@@ -16,7 +16,7 @@ from vip_hci.fm import cube_inject_companions
 def inject_fcp_ifs(cube, derot_angles, psf, rtheta_planet, planet_spec, 
                    star_obs_spec, star_mod_spec, mean_contrast, spec_res=None, 
                    transmission=None, norm_fac=None, imlib='vip-fft', 
-                   interpolation=None, verbose=False):
+                   interpolation=None, verbose=False, full_output=False):
     """ Function to inject a fake companion with a given input spectrum into an 
     IFS data cube.
 
@@ -72,14 +72,18 @@ def inject_fcp_ifs(cube, derot_angles, psf, rtheta_planet, planet_spec,
     interpolation : str, optional
         Interpolation method used for image shifts. See the documentation of 
         the ``vip_hci.preproc.frame_shift`` function.
-    verbose: str, optional
+    verbose: bool, optional
         Whether to print more information during processing.
+    full_output: bool, optional
+        Whether to also return the fluxes of the injected planet.
     
     Returns
     -------
     fcp_cube : 4D numpy array
         Output IFS 4D master cube where the companion has been injected.
-
+    [full_output=True]
+    flevel : 1D numpy array
+        Fluxes used for the injected planet
     """
 
     r, theta = rtheta_planet
@@ -97,11 +101,11 @@ def inject_fcp_ifs(cube, derot_angles, psf, rtheta_planet, planet_spec,
     planet_spec = (star_obs_spec[1]/star_mod_spec_res[1])*planet_spec_res[1]
     ## contrast
     scal_fac = mean_contrast*np.sum(star_obs_spec[1])/np.sum(planet_spec)
-    flevel = scal_fac*planet_spec
+    fluxes = scal_fac*planet_spec
     if verbose:
         msg = "Flux levels used for planet injection"
         msg+= " (before considering airmass): "
-        print(msg, flevel)
+        print(msg, fluxes)
     
     # include the effect of airmass
     if norm_fac is not None:
@@ -109,7 +113,9 @@ def inject_fcp_ifs(cube, derot_angles, psf, rtheta_planet, planet_spec,
             msg = "Normalization factors and derotation angles should have "
             msg += "same length."
             raise TypeError(msg)
-        flevel = np.outer(flevel, norm_fac)
+        flevel = np.outer(fluxes, norm_fac)
+    else:
+        flevel = fluxes
     
     # inject in the 4D cube
     fcp_cube = cube_inject_companions(cube, psf, derot_angles, flevel, 
@@ -118,5 +124,7 @@ def inject_fcp_ifs(cube, derot_angles, psf, rtheta_planet, planet_spec,
                                       interpolation=interpolation, 
                                       transmission=transmission, 
                                       verbose=verbose)
-
-    return fcp_cube
+    if full_output:
+        return fcp_cube, fluxes
+    else:
+        return fcp_cube
