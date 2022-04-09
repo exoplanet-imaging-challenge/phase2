@@ -2,14 +2,17 @@ Package for the 2nd phase of the exoplanet imaging data challenge
 
 This package provides the tools required for:
 
-* injection of fake companion spectra;
+* injecting fake companion spectra;
 * reading participants submitted results;
-* the evaluation and analysis of the results (in particular distance metrics).
+* evaluate and analyze the results (in particular distance metrics).
 
 
-Jupyter notebook tutorial
--------------------------
-A Jupyter notebook tutorial examplifying the injection of fake companion in an IFU dataset is available here ***TBD***.
+Jupyter notebook tutorials
+--------------------------
+Two Jupyter notebook tutorials are available in the tutorials folder:
+
+* ``planet_injection_example`` shows how fake companions with given spectra are injected in a test IFU dataset - this may be useful for participants wishing to replicate the injection procedure in order to train their algorithm;
+* ``preprocessing_example`` shows how to perform a better preprocessing of the provided data cubes (bad pixel correction, bad frame rejection). We did not run the latter for 2 reasons: i) we wished to provide the participants with the data cubes as they come out of their respective official pipelines, and ii) different retrieval methods may suffer/benefit in different ways from softer/harder bad frame trimming or the presence of residual bad pixels.
 
 
 Installation and dependencies
