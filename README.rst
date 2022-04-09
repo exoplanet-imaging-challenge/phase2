@@ -1,10 +1,8 @@
-Package for the 2nd phase of the exoplanet imaging data challenge
-
-This package provides the tools required for:
+This is the package associated to the 2nd phase of the exoplanet imaging data challenge. It provides the tools required for:
 
 * injecting fake companion spectra;
 * reading participants submitted results;
-* evaluate and analyze the results (in particular distance metrics).
+* evaluate and analyze the results.
 
 
 Jupyter notebook tutorials
