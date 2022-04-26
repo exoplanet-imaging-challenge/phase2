@@ -34,3 +34,6 @@ htmlcov/
 # scripts
 _pypi.sh
 _sphinx.sh
+
+# jupyter notebooks
+*.ipynb_checkpoints

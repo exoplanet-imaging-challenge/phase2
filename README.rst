@@ -7,11 +7,11 @@ This is the package associated to the 2nd phase of the exoplanet imaging data ch
 
 Jupyter notebook tutorials
 --------------------------
-Two Jupyter notebook tutorials are available in the tutorials folder:
+Three Jupyter notebooks are available in the tutorials folder:
 
 * ``planet_injection_trainingset`` shows how fake companions with given spectra are injected in a test IFU dataset - this may be useful for participants wishing to replicate the injection procedure in order to train their algorithm;
 * ``preprocessing_example`` shows how to perform a better preprocessing of the provided data cubes (bad pixel correction, bad frame rejection). We did not run the latter for 2 reasons: i) we wished to provide the participants with the data cubes as they come out of their respective official pipelines, and ii) different retrieval methods may suffer/benefit in different ways from softer/harder bad frame trimming or the presence of residual bad pixels.
-
+* ``MEF_creation_example`` shows how to write your results in Multi-Extension Fits file format, the requested format for submission of your results to the data challenge.
 
 Installation and dependencies
 -----------------------------
