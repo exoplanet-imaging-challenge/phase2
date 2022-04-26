@@ -15,7 +15,7 @@ from vip_hci.fm import cube_inject_companions
 
 def inject_fcp_ifs(cube, derot_angles, psf, rtheta_planet, planet_spec, 
                    star_obs_spec, star_mod_spec, mean_contrast, spec_res=None, 
-                   transmission=None, norm_fac=None, imlib='vip-fft', 
+                   transmission=None, norm_fac=None, plsc=None, imlib='vip-fft', 
                    interpolation=None, verbose=False, full_output=False):
     """ Function to inject a fake companion with a given input spectrum into an 
     IFS data cube.
@@ -66,6 +66,9 @@ def inject_fcp_ifs(cube, derot_angles, psf, rtheta_planet, planet_spec,
         spectrum for each timestamp (i.e. should have the same length as 
         derot_angles). This can be used to take into account varying observing
         conditions or airmass.
+    plsc: float, optional
+        Plate scale, only used to print radial separation of injection in 
+        arcsec if verbose is set to True.
     imlib : str, optional, {'vip-fft', 'opencv', 'ndimage-fourier'}
         Image library used for image shifts. See the documentation of the 
         ``vip_hci.preproc.frame_shift`` function.
@@ -88,17 +91,19 @@ def inject_fcp_ifs(cube, derot_angles, psf, rtheta_planet, planet_spec,
 
     r, theta = rtheta_planet
 
-    # convolve + resample the fcp model spectrum
-    planet_spec_res = resample_model(star_obs_spec[0], planet_spec[0], 
+    # convolve + resample the fcp model spectrum, if needed
+    if not np.array_equal(star_obs_spec[0], planet_spec[0]):
+        planet_spec = resample_model(star_obs_spec[0], planet_spec[0], 
                                      planet_spec[1], instru_res=spec_res)
     
-    # convolve + resample the star model spectrum
-    star_mod_spec_res = resample_model(star_obs_spec[0], star_mod_spec[0], 
+    # convolve + resample the star model spectrum, if needed
+    if not np.array_equal(star_obs_spec[0], star_mod_spec[0]):
+        star_mod_spec = resample_model(star_obs_spec[0], star_mod_spec[0], 
                                        star_mod_spec[1], instru_res=spec_res)
     
     # find flux scaling factor
     ## instrumental+atm effects
-    planet_spec = (star_obs_spec[1]/star_mod_spec_res[1])*planet_spec_res[1]
+    planet_spec = (star_obs_spec[1]/star_mod_spec[1])*planet_spec[1]
     ## contrast
     scal_fac = mean_contrast*np.sum(star_obs_spec[1])/np.sum(planet_spec)
     fluxes = scal_fac*planet_spec
@@ -119,8 +124,8 @@ def inject_fcp_ifs(cube, derot_angles, psf, rtheta_planet, planet_spec,
     
     # inject in the 4D cube
     fcp_cube = cube_inject_companions(cube, psf, derot_angles, flevel, 
-                                      plsc=1., rad_dists=[r], n_branches=1, 
-                                      theta=theta, imlib=imlib, 
+                                      rad_dists=[r], n_branches=1,
+                                      theta=theta, plsc=plsc, imlib=imlib, 
                                       interpolation=interpolation, 
                                       transmission=transmission, 
                                       verbose=verbose)

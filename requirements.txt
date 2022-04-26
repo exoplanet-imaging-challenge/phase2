@@ -1,2 +1,4 @@
-vip_hci>=1.2.1
+vip_hci>=1.2.2
 special>=0.1.1
+jupyter
+requests
