@@ -20,7 +20,7 @@ import os
 warnings.filterwarnings('ignore')
 
 
-def create_mefs(n_mef, n_estimates, estimate_bounds=[0,1], error_bounds=[0,2], nsamp_posterior=1000, save_to='./', zipname='mef1.zip', mefname='mef'):
+def create_mefs(n_mef, n_estimates, n_inj=1, estimate_bounds=[0,1], error_bounds=[0,2], nsamp_posterior=1000, save_to='./', zipname='mef1.zip', mefnames='mef'):
     '''
     Function that creates MEF files with mock data for the second Exoplanet Imaging Data Challenge. 
     
@@ -47,7 +47,7 @@ def create_mefs(n_mef, n_estimates, estimate_bounds=[0,1], error_bounds=[0,2], n
         (optional) Path to save the MEF files created.
     ·  zipname: str
         (optional)  Name of the ZIP file.
-    ·  mef: str
+    ·  mefnames: str
          Common name for all MEF files created. Then, an numerical id is added to 
          differentiate among them.
     '''
@@ -55,8 +55,8 @@ def create_mefs(n_mef, n_estimates, estimate_bounds=[0,1], error_bounds=[0,2], n
     if not isinstance(n_mef, int):
         msg = 'n_mef must be an integer.'
         raise ValueError(msg)
-    if not isinstance(n_estimates, int):
-        msg = 'n_estimates must be an integer.'
+    if not isinstance(n_estimates, int) and not isinstance(n_estimates, list):
+        msg = 'n_estimates must be an integer or a list of integers.'
         raise ValueError(msg)
     if not isinstance(estimate_bounds, list):
         msg = 'estimate_bounds must be a list.'
@@ -67,23 +67,41 @@ def create_mefs(n_mef, n_estimates, estimate_bounds=[0,1], error_bounds=[0,2], n
     if not isinstance(nsamp_posterior, int):
         msg = 'nsamp_posterior must be an integer.'
         raise ValueError(msg)
+        
+    if isinstance(mefnames, str):
+        mefnames = [str(mefnames)] * n_mef
+                
+    if not isinstance(n_estimates, list):
+        n_estimates = [n_estimates] * n_mef
+        
+    if  isinstance(n_inj, int):
+        n_inj = [n_inj] * n_mef
+    
     
     d_list=[]
     for i in range(n_mef):
-        estimate = np.random.uniform(low=estimate_bounds[0], high=estimate_bounds[1], size=n_estimates)
-        error    = np.random.uniform(low=error_bounds[0], high=error_bounds[1], size=n_estimates)
-        post_list=[]
-        for j in range(n_estimates):
-            post = np.random.normal(loc=estimate[j], scale=error[j], size=nsamp_posterior)
-            post_list.append(post)
-        d = (estimate, error, np.array(post_list))
+        list_est, list_err, list_post = [], [], []
+        for inj in range(n_inj[i]):
+            #print(i, inj, n_estimates[i])
+            estimate = np.random.uniform(low=estimate_bounds[0], high=estimate_bounds[1], size=n_estimates[i])
+            error    = np.random.uniform(low=error_bounds[0], high=error_bounds[1], size=n_estimates[i])
+            post_list=[]
+            for j in range(n_estimates[i]):
+                post = np.random.normal(loc=estimate[j], scale=error[j], size=nsamp_posterior)
+                post_list.append(post)
+            list_est.append(estimate)
+            list_err.append(error)
+            list_post.append(np.array(post_list))
+            
+        d = (np.array(list_est), np.array(list_err), np.array(list_post))
         d_list.append(d)
         
         if save_to:
             if not isinstance(save_to, str):
                 msg = 'save_to must be an string.'
                 raise ValueError(msg) 
-            fitsname= str(save_to)+str(mefname)+str(i+1)+'.fits'
+            #fitsname= str(save_to)+str(mefname)+str(i+1)+'.fits'
+            fitsname= str(save_to)+str(mefnames[i])
             vip.fits.write_fits(fitsfilename=fitsname, array=d, verbose=False)
         
     if zipname:
@@ -96,7 +114,8 @@ def create_mefs(n_mef, n_estimates, estimate_bounds=[0,1], error_bounds=[0,2], n
             
         f = zipfile.ZipFile(str(zipname), 'w')
         for i in range(n_mef): 
-            fitsname= str(save_to)+str(mefname)+str(i+1)+'.fits'
+            fitsname= str(save_to)+str(mefnames[i])+'.fits'
+            #fitsname= str(save_to)+str(mefname)+str(i+1)
             f.write(fitsname)
             os.remove(fitsname) 
             
@@ -104,7 +123,7 @@ def create_mefs(n_mef, n_estimates, estimate_bounds=[0,1], error_bounds=[0,2], n
 
 
 
-def read_submission(zipfilename, fitsfilenames=None,  verbose=False):
+def read_submission(zipfilename, fitsfilenames=None,  read_estimates=True, read_errors=True, read_posteriors=False,verbose=False):
     '''
     Function to read the ZIP file submitted by a participant of the data challenge.
     
@@ -141,7 +160,8 @@ def read_submission(zipfilename, fitsfilenames=None,  verbose=False):
     if fitsfilenames is not None:
         if isinstance(fitsfilenames, list):
             if all(isinstance(item, str) for item in fitsfilenames):
-                for i in fitsfilenames: file.extract(i, str(tempfolder))
+                for i in fitsfilenames: 
+                    file.extract(i, str(tempfolder))
                 names = fitsfilenames
             else:
                 msg = 'each item in fitsfilenames must be an string.'
@@ -153,37 +173,61 @@ def read_submission(zipfilename, fitsfilenames=None,  verbose=False):
         file.extractall(str(tempfolder))
         names = file.namelist()
 
-    res = []
+    est, errors, post = [], [], []
     for mef in names:
         if verbose: 
             print('File '+str(mef)+':')
         mef_ = mef.removesuffix('.fits')
-        estimates    = np.asarray(vip.fits.open_fits(fitsfilename=str(tempfolder)+'/'+str(mef_), n=0, verbose=verbose))
-        uncertanties = np.asarray(vip.fits.open_fits(fitsfilename=str(tempfolder)+'/'+str(mef_), n=1, verbose=verbose))
-        posteriors   = np.asarray(vip.fits.open_fits(fitsfilename=str(tempfolder)+'/'+str(mef_), n=2, verbose=verbose))
-        results = (estimates, uncertanties, posteriors)
-        res.append(results)
+        if read_estimates:
+            estimates    = np.array(vip.fits.open_fits(fitsfilename=str(tempfolder)+'/'+str(mef_), n=0, verbose=verbose))
+            est.append(estimates)
+        if read_errors:
+            uncertanties = np.array(vip.fits.open_fits(fitsfilename=str(tempfolder)+'/'+str(mef_), n=1, verbose=verbose))
+            errors.append(uncertanties)
+        if read_posteriors:
+            posteriors   = np.array(vip.fits.open_fits(fitsfilename=str(tempfolder)+'/'+str(mef_), n=2, verbose=verbose))
+            post.append(posteriors)
     file.close()
     shutil.rmtree(str(tempfolder))
+    
+    # returns
+    if read_estimates:
+        if read_errors:
+            if read_posteriors:
+                return est, errors, post
+            else:
+                return est, errors
+        if read_posteriors:
+            return est, post
+        else:
+            return est
+    if not read_estimates:
+        if read_errors:
+            if read_posteriors:
+                return errors, post
+            else:
+                return errors
+        if read_posteriors:
+            return post
+        else:
+            print('You should choose one return')
+            
+            
     
     return res
 
 
-
-def eval_submission(username, astrometry, photometry, verbose=True, plot=True):
+def eval_submission(zips_astrometry, zips_photometry, verbose=False):
     '''
-    Function to evaluate both the astrometry and photometry submissions 
-    for the second Exoplanet Imaging Data Challenge.
-    
+    Function that evaluates both the astrometry and photometry task of a submission. 
+
      Parameters
-    ----------
-    ·  username: str
-        The username of the submission participant.
-    ·  astrometry: list
+    ------------
+    ·  zips_astrometry: list
         List with the name of the two ZIP files to evaluate the astrometry task, 
         the submission and the ground_truth. 
         For example, astrometry=['submission.zip', 'ground_truth.zip']
-    ·  photometry: list
+    ·  zips_photometry: list
         List with the name of the two ZIP files to evaluate the photometry task, 
         the submission and the ground_truth. 
         For example, photometry=['submission.zip', 'ground_truth.zip']
@@ -198,96 +242,112 @@ def eval_submission(username, astrometry, photometry, verbose=True, plot=True):
         Final distance metric for the photometry task
     
     '''
+    # Read ZIP files: Astrometry and Spectrophotometry for both the user and the GT
+    gt_astro   = read_submission(zipfilename= zips_astrometry[0], read_estimates=True, read_errors=False)
+    user_astro = read_submission(zipfilename= zips_astrometry[1], read_estimates=True, read_errors=False)
+    gt_photo   = read_submission(zipfilename= zips_photometry[0], read_estimates=True, read_errors=False)
+    user_photo = read_submission(zipfilename= zips_photometry[1], read_estimates=True, read_errors=False)
     
-    if not isinstance(username, str):
-        msg = 'username must be a string.'
-        raise ValueError(msg)
-
+    # Evaluation
+    astro_metric = eval_astro(array_user_astro=user_astro,  array_gt_astro=gt_astro)
+    photo_metric = eval_photo(array_user_photo= user_photo, array_gt_photo= gt_photo)
     
-    # Read astrometry ZIP files
-    if isinstance(astrometry, list):
-        if all(isinstance(item, str) for item in astrometry):
-            sub_astro = read_submission(zipfilename=str(astrometry[0]))
-            gt_astro  = read_submission(zipfilename=str(astrometry[1]))
-        else:
-            msg = 'each item in astrometry must be an string.'
-            raise ValueError(msg) 
-    else:
-        msg = 'astrometry must be a list or a None.'
-        raise ValueError(msg) 
-        
-    
-    # Read photometry ZIP files
-    if isinstance(photometry, list):
-        if all(isinstance(item, str) for item in photometry):
-            sub_photo = read_submission(zipfilename=str(photometry[0]))
-            gt_photo  = read_submission(zipfilename=str(photometry[1]))
-        else:
-            msg = 'each item in photometry must be an string.'
-            raise ValueError(msg) 
-    else:
-        msg = 'photometry must be a list or a None.'
-        raise ValueError(msg) 
-    
-    # Evaluate astrometry
-    drs, dthetas = [], []
-    for i in range(len(gt_astro)):
-        r_sub, theta_sub = sub_astro[i][0]
-        r_gt, theta_gt   = gt_astro[i][0]
-        d_r     = distance(r_gt, r_sub, errors=None, mode='relative')
-        d_theta = distance(theta_gt, theta_sub, errors=None, mode='relative')
-        drs.append(d_r)
-        dthetas.append(d_theta)
-    metric_astro = np.mean([np.mean(drs), np.mean(d_theta)])
     if verbose:
-        print('ASTROMETRY TASK')
-        print('----------------')
-        print(' > Distance per cube:')
-        print('  · r='+str(np.round(drs,3)))
-        print('  · \u03B8='+str(np.round(dthetas,3)))
-        print(' > Final metric of '+str(username)+': ' +str(metric_astro))
-        print()
-        
-    # Evaluate astrometry
-    contrasts_avg = []
-    for i in range(len(gt_photo)):
-        sub_contrasts = sub_photo[i][0]
-        gt_contrasts  = gt_photo[i][0]
-        dcontrasts = []
-        for j in range(len(gt_contrasts)):
-            d_contrast = distance(gt_contrasts[j], sub_contrasts[j], errors=None, mode='relative')
-            dcontrasts.append(d_contrast)
-        contrasts_avg.append(np.mean(dcontrasts))
-    metric_photo = np.mean(contrasts_avg)
-    if verbose: 
-        print('PHOTOMETRY TASK')
-        print('----------------')
-        print(' > Distance per cube:')
-        print('  · Contrast= '+str(np.round(contrasts_avg, 3)))
-        print(' > Final metric of '+str(username)+': ' +str(metric_photo))
-        
-    if plot:
-        x = np.arange(0, len(gt_photo[0][0]))
-        fig, axs = plt.subplots(2,9, figsize=(32,6))
-        for i in range(len(gt_photo)):
-            axs[0][i].set_title('Cube '+str(i+1), fontsize=15)
-            sns.kdeplot(sub_astro[i][2][0], sub_astro[i][2][1], ax=axs[0][i], alpha=0.8, label='P($\hat{y}$)')
-            axs[0][i].scatter(sub_astro[i][0][0],sub_astro[i][0][1], marker='X', c='k', label='$\hat{y}$')
-            axs[0][i].scatter(gt_astro[i][0][0],gt_astro[i][0][1], marker='X', c='r', label='y')
-            axs[0][i].grid(alpha=0.2)
-            axs[0][i].set_xlabel('r [mas]', fontsize=14)
-            if i==0: axs[0][i].set_ylabel('$\u03B8$ [º]', fontsize=14)
-            axs[0][i].legend(loc=1)
+        print('- Astrometry = '+str(astro_metric))
+        print('- Spectrophotometry = '+str(photo_metric))
+    
+    return astro_metric, photo_metric
 
-            axs[1][i].plot(sub_photo[i][0], c='b', label='$\hat{y}$', linewidth=1)
-            axs[1][i].plot(gt_photo[i][0], c='r', label='y', linewidth=1, linestyle='--')
-            axs[1][i].fill_between(x, sub_photo[i][0]+sub_photo[i][1], sub_photo[i][0]-sub_photo[i][1], color='b', alpha=0.1, label='P($\hat{y}$)')
-            axs[1][i].grid(alpha=0.2)
-            axs[1][i].set_xlabel('Wavelength', fontsize=14)
-            if i==0: axs[1][i].set_ylabel('Contrast', fontsize=14)
-            axs[1][i].legend(loc=1)
 
-        plt.subplots_adjust(top = 0.99, bottom=0.1, hspace=0.5, wspace=0.3)
-        plt.show()
-        
-    return metric_astro, metric_photo
+
+
+
+def eval_astro(array_user_astro, array_gt_astro):
+    '''
+    Function that evaluates the astrometry of a submission. It returns 
+    a distance metric (float) for the astrometry task. The closer to zero 
+    the metric, the better the performance of the algorithm.
+    
+    To use this function, we recommend to use first the read_submission()
+    method for reading the data loading the data into arrays.
+    
+    Parameters
+    ----------
+    ·  array_user_astro: numpy array
+       Array with all astrometry estimates of the submission
+    ·  array_gt_astro: numpy array
+       Array with all astrometry ground truth to compare the submission
+       
+    Returns
+    -------
+    ·  metric_astro_user: Astrometry mean distance metric 
+    '''
+    
+    list_dist_astro_cubes=[] 
+    for i in range(len(array_gt_astro)):
+        list_dist_astro_planets=[]
+        for j in range(len(array_gt_astro[i])):
+            dx_user, dy_user = array_user_astro[i][j]
+            dx_gt, dy_gt     = array_gt_astro[i][j]
+
+            #if dx_user==-1 and dy_user==-1:
+
+            dist_x = distance(dx_gt, dx_user, errors=None, mode='relative')
+            dist_y = distance(dy_gt, dy_user, errors=None, mode='relative')
+
+            dist_astro_planet = np.mean([dist_x,dist_y])
+            list_dist_astro_planets.append(dist_astro_planet)
+
+        dist_astro_cube = np.mean(list_dist_astro_planets)   
+        list_dist_astro_cubes.append(dist_astro_cube)
+
+    metric_astro_user = np.mean(list_dist_astro_cubes)
+    
+    return metric_astro_user
+
+
+
+def eval_photo(array_user_photo, array_gt_photo):
+    '''
+    Function that evaluates the spectrophotometry of a submission. It returns 
+    a distance metric (float) for the spectrophotometry task. The closer to zero 
+    the metric, the better the performance of the algorithm.
+    
+    To use this function, we recommend to use first the read_submission()
+    method for reading the data loading the data into arrays.
+    
+    Parameters
+    ----------
+    ·  array_user_photo: numpy array
+       Array with all astrometry estimates of the submission
+    ·  array_gt_photo: numpy array
+       Array with all astrometry ground truth to compare the submission
+       
+    Returns
+    -------
+    ·  metric_photo_user: Spectrophotometry mean distance metric 
+    '''
+    
+    list_dcontrast_cube=[]
+    for i in range(len(array_gt_photo)): # cube
+        list_dist_photo_planets=[]
+
+        list_dcontrast_planets=[]
+        for j in range(len(array_gt_photo[i])): #injection
+            curve_user = array_user_photo[i][j]
+            curve_gt   = array_gt_photo[i][j]
+
+            list_dcontrasts = []
+            for k in range(len(curve_gt)): # band
+                if curve_gt[k].ndim==1:
+                    gt = curve_gt[k]
+                if curve_gt[k].ndim==2:
+                    gt = np.array([item for sublist in curve_gt[k] for item in sublist]) 
+                dist_contrast = distance(gt[k], curve_user[k], errors=None, mode='relative')
+
+                list_dcontrasts.append(dist_contrast)
+            list_dcontrast_planets.append(np.mean(list_dcontrasts))
+        list_dcontrast_cube.append(np.mean(list_dcontrast_planets))
+    metric_photo_user = np.mean(list_dcontrast_cube)
+    
+    return metric_photo_user
