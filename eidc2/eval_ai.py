@@ -11,12 +11,14 @@ __all__ = ['create_mefs',
            'eval_submission']
 
 
-from .metrics import distance
+from .metrics import distance_L1, distance_L2
 import numpy as np 
 import zipfile
 import vip_hci as vip
 import warnings
 import os
+import shutil
+from time import ctime
 warnings.filterwarnings('ignore')
 
 
@@ -123,7 +125,8 @@ def create_mefs(n_mef, n_estimates, n_inj=1, estimate_bounds=[0,1], error_bounds
 
 
 
-def read_submission(zipfilename, fitsfilenames=None,  read_estimates=True, read_errors=True, read_posteriors=False,verbose=False):
+def read_submission(zipfilename, fitsfilenames=None,  read_estimates=True, 
+                    read_errors=True, read_posteriors=False, verbose=False):
     '''
     Function to read the ZIP file submitted by a participant of the data challenge.
     
@@ -201,7 +204,7 @@ def read_submission(zipfilename, fitsfilenames=None,  read_estimates=True, read_
             return est, post
         else:
             return est
-    if not read_estimates:
+    else:
         if read_errors:
             if read_posteriors:
                 return errors, post
@@ -210,12 +213,8 @@ def read_submission(zipfilename, fitsfilenames=None,  read_estimates=True, read_
         if read_posteriors:
             return post
         else:
-            print('You should choose one return')
+            raise ValueError('You should choose something to be returned')
             
-            
-    
-    return res
-
 
 def eval_submission(zips_astrometry, zips_photometry, verbose=False):
     '''
@@ -284,19 +283,18 @@ def eval_astro(array_user_astro, array_gt_astro):
     '''
     
     list_dist_astro_cubes=[] 
-    for i in range(len(array_gt_astro)):
+    for i in range(len(array_gt_astro)): # loop on cubes
         list_dist_astro_planets=[]
-        for j in range(len(array_gt_astro[i])):
-            dx_user, dy_user = array_user_astro[i][j]
-            dx_gt, dy_gt     = array_gt_astro[i][j]
+        for j in range(len(array_gt_astro[i])): # loop on injections
+            dxy_user = array_user_astro[i][j]
+            dxy_gt   = array_gt_astro[i][j]
 
-            #if dx_user==-1 and dy_user==-1:
+            if np.allclose(dxy_user, -1*np.ones_like(dxy_gt)):
+                dxy_user = np.zeros_like(dxy_gt)
 
-            dist_x = distance(dx_gt, dx_user, errors=None, mode='relative')
-            dist_y = distance(dy_gt, dy_user, errors=None, mode='relative')
+            dist_xy = distance_L2(dxy_gt, dxy_user)
 
-            dist_astro_planet = np.mean([dist_x,dist_y])
-            list_dist_astro_planets.append(dist_astro_planet)
+            list_dist_astro_planets.append(dist_xy)
 
         dist_astro_cube = np.mean(list_dist_astro_planets)   
         list_dist_astro_cubes.append(dist_astro_cube)
@@ -330,23 +328,22 @@ def eval_photo(array_user_photo, array_gt_photo):
     
     list_dcontrast_cube=[]
     for i in range(len(array_gt_photo)): # cube
-        list_dist_photo_planets=[]
-
         list_dcontrast_planets=[]
-        for j in range(len(array_gt_photo[i])): #injection
-            curve_user = array_user_photo[i][j]
-            curve_gt   = array_gt_photo[i][j]
+        for j in range(len(array_gt_photo[i])): # injection
+            # curve_user = array_user_photo[i][j]
+            # curve_gt   = array_gt_photo[i][j]                
+            # for k in range(len(curve_gt)): # wavelength
+            #     if curve_gt[k].ndim==1:
+            #         gt = curve_gt[k]
+            #     if curve_gt[k].ndim==2:
+            #         gt = np.array([item for sublist in curve_gt[k] for item in sublist]) 
+            #     if curve_user[k] == -1:
+            #         curve_user[k] = 0
+                    
+            dist_contrast = distance_L1(array_gt_photo[i][j], 
+                                        array_user_photo[i][j])
 
-            list_dcontrasts = []
-            for k in range(len(curve_gt)): # band
-                if curve_gt[k].ndim==1:
-                    gt = curve_gt[k]
-                if curve_gt[k].ndim==2:
-                    gt = np.array([item for sublist in curve_gt[k] for item in sublist]) 
-                dist_contrast = distance(gt[k], curve_user[k], errors=None, mode='relative')
-
-                list_dcontrasts.append(dist_contrast)
-            list_dcontrast_planets.append(np.mean(list_dcontrasts))
+            list_dcontrast_planets.append(np.mean(dist_contrast))
         list_dcontrast_cube.append(np.mean(list_dcontrast_planets))
     metric_photo_user = np.mean(list_dcontrast_cube)
     
