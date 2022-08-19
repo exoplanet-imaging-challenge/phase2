@@ -259,8 +259,6 @@ def eval_submission(zips_astrometry, zips_photometry, verbose=False):
 
 
 
-
-
 def eval_astro(array_user_astro, array_gt_astro):
     '''
     Function that evaluates the astrometry of a submission. It returns 
