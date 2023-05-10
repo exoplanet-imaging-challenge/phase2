@@ -22,7 +22,9 @@ from time import ctime
 warnings.filterwarnings('ignore')
 
 
-def create_mefs(n_mef, n_estimates, n_inj=1, estimate_bounds=[0,1], error_bounds=[0,2], nsamp_posterior=1000, save_to='./', zipname='mef1.zip', mefnames='mef'):
+def create_mefs(n_mef, n_estimates, n_inj=1, estimate_bounds=[0,1], 
+                error_bounds=[0,2], nsamp_posterior=1000, save_to='./', 
+                zipname='mef1.zip', mefnames='mef'):
     '''
     Function that creates MEF files with mock data for the second Exoplanet Imaging Data Challenge. 
     
@@ -85,11 +87,16 @@ def create_mefs(n_mef, n_estimates, n_inj=1, estimate_bounds=[0,1], error_bounds
         list_est, list_err, list_post = [], [], []
         for inj in range(n_inj[i]):
             #print(i, inj, n_estimates[i])
-            estimate = np.random.uniform(low=estimate_bounds[0], high=estimate_bounds[1], size=n_estimates[i])
-            error    = np.random.uniform(low=error_bounds[0], high=error_bounds[1], size=n_estimates[i])
+            estimate = np.random.uniform(low=estimate_bounds[0], 
+                                         high=estimate_bounds[1], 
+                                         size=n_estimates[i])
+            error    = np.random.uniform(low=error_bounds[0], 
+                                         high=error_bounds[1], 
+                                         size=n_estimates[i])
             post_list=[]
             for j in range(n_estimates[i]):
-                post = np.random.normal(loc=estimate[j], scale=error[j], size=nsamp_posterior)
+                post = np.random.normal(loc=estimate[j], scale=error[j], 
+                                        size=nsamp_posterior)
                 post_list.append(post)
             list_est.append(estimate)
             list_err.append(error)
@@ -125,7 +132,7 @@ def create_mefs(n_mef, n_estimates, n_inj=1, estimate_bounds=[0,1], error_bounds
 
 
 
-def read_submission(zipfilename, fitsfilenames=None,  read_estimates=True, 
+def read_submission(zipfilename, fitsfilenames=None, read_estimates=True, 
                     read_errors=True, read_posteriors=False, verbose=False):
     '''
     Function to read the ZIP file submitted by a participant of the data challenge.
@@ -242,14 +249,20 @@ def eval_submission(zips_astrometry, zips_photometry, verbose=False):
     
     '''
     # Read ZIP files: Astrometry and Spectrophotometry for both the user and the GT
-    gt_astro   = read_submission(zipfilename= zips_astrometry[0], read_estimates=True, read_errors=False)
-    user_astro = read_submission(zipfilename= zips_astrometry[1], read_estimates=True, read_errors=False)
-    gt_photo   = read_submission(zipfilename= zips_photometry[0], read_estimates=True, read_errors=False)
-    user_photo = read_submission(zipfilename= zips_photometry[1], read_estimates=True, read_errors=False)
+    gt_astro   = read_submission(zipfilename= zips_astrometry[0], 
+                                 read_estimates=True, read_errors=False)
+    user_astro = read_submission(zipfilename= zips_astrometry[1], 
+                                 read_estimates=True, read_errors=False)
+    gt_photo   = read_submission(zipfilename= zips_photometry[0], 
+                                 read_estimates=True, read_errors=False)
+    user_photo = read_submission(zipfilename= zips_photometry[1], 
+                                 read_estimates=True, read_errors=False)
     
     # Evaluation
-    astro_metric = eval_astro(array_user_astro=user_astro,  array_gt_astro=gt_astro)
-    photo_metric = eval_photo(array_user_photo= user_photo, array_gt_photo= gt_photo)
+    astro_metric = eval_astro(array_user_astro=user_astro, 
+                              array_gt_astro=gt_astro)
+    photo_metric = eval_photo(array_user_photo= user_photo, 
+                              array_gt_photo=gt_photo)
     
     if verbose:
         print('- Astrometry = '+str(astro_metric))
